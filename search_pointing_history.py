@@ -12,7 +12,7 @@ import re
 from astropy.time import Time
 from gbm import GBMgeo
 from gbm.clock import *
-#from swiftbat_python.swiftbat import swinfo
+from swiftbat_python.swiftbat import swinfo
 
 
 def search_gbm_pointing(ra, dec, t):
@@ -32,7 +32,6 @@ def search_gbm_pointing(ra, dec, t):
     
     # Download the relevant poshist file
     yymmdd = re.sub('-', '', t.iso[2:10])
-    print(yymmdd)
     root = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/daily/"
     date = "20" + yymmdd[0:2] + "/" + yymmdd[2:4] + "/" + yymmdd[4:6] 
     fname = "glg_poshist_all_%s_v00.fit" %yymmdd
@@ -46,6 +45,7 @@ def search_gbm_pointing(ra, dec, t):
 
     # Check for the time
     gtiflag = GBMgeo.checkGTI(cMET)
+    print(gtiflag)
     if not gtiflag:
         print('Occurred during a bad time interval (likely SAA)')
     else:
@@ -70,9 +70,11 @@ def search_bat_pointing(ra, dec, t):
 
 
 if __name__=="__main__":
-    ra = 191.77
-    dec = 45.2006
-    times = Time(np.linspace(2458876.0382, 2458876.7801, 20), format='jd')
+    ra = 123.813909
+    dec = -5.867007
+    jd_steps = np.linspace(2459230.7774, 2459230.7915, 5)
+    times = Time(jd_steps, format='jd')
     for t0 in times:
-        search_gbm_pointing(ra, dec, t0)
-    #search_bat_pointing(ra, dec, t0)
+        print(t0)
+        #search_gbm_pointing(ra, dec, t0)
+        search_bat_pointing(ra, dec, t0)

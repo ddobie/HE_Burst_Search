@@ -92,7 +92,7 @@ def fermi(ra,dec,start,end):
 
     www = 'https://heasarc.gsfc.nasa.gov/db-perl/W3Browse/w3query.pl'
     data = {}
-    data['tablehead'] = 'name=heasarc_fermigbrst&description=Fermi GBM Burst Catalog&url=http://heasarc.gsfc.nasa.gov/W3Browse/fermi/fermigbrst.html&archive=Y&radius=180&mission=FERMI&priority=1&tabletype=Object'
+    data['tablehead'] = 'name=heasarc_fermigtrig&description=Fermi GBM Trigger Catalog&url=http://heasarc.gsfc.nasa.gov/W3Browse/fermi/fermigtrig.html&archive=Y&radius=180&mission=FERMI&priority=1&tabletype=Object'
     data['Time'] = '%s .. %s' %(window[0].mjd, window[-1].mjd)
     data['displaymode'] = 'PureTextDisplay'
     data['varon'] = 'name,ra,dec,trigger_time,error_radius'
@@ -193,7 +193,9 @@ def swift(ra,dec,start,end):
 
     print("\n")
     print("CONDUCTING SEARCH OF SWIFT/BAT CATALOG")
-    dat = np.loadtxt("/Users/annaho/Dropbox/Projects/Research/HE_Burst_Search/swift_grb_2018.txt", dtype=str, skiprows=1) 
+    dat = np.loadtxt(
+            "/Users/annaho/Dropbox/astronomy/tools/HE_Burst_Search/swift_grb_2018.txt", 
+            dtype=str, skiprows=1) 
     nrows = dat.shape[0]
     year = ["20%s-%s-%s" %(i[0:2],i[2:4],i[4:6]) for i in dat[:,0]]
     time = dat[:,1]
@@ -203,7 +205,9 @@ def swift(ra,dec,start,end):
     date = [Time(
         '%sT%s' %(year[i],time[i]), format='isot') for i in np.arange(nrows)]
 
-    dat = np.loadtxt("/Users/annaho/Dropbox/Projects/Research/HE_Burst_Search/swift_grb_2019.txt", dtype=str, skiprows=1) 
+    dat = np.loadtxt(
+            "/Users/annaho/Dropbox/astronomy/tools/HE_Burst_Search/swift_grb_2019.txt", 
+            dtype=str, skiprows=1) 
     nrows = dat.shape[0]
     year = ["20%s-%s-%s" %(i[0:2],i[2:4],i[4:6]) for i in dat[:,0]]
     time = dat[:,1]
@@ -241,8 +245,8 @@ def run(ra,dec,start,end):
 
 
 if __name__=="__main__":
-    end = Time(2458880.8358, format='jd')
-    start = Time(2458850.9822, format='jd')
-    ra = 178.946000
-    dec = -17.395850
+    start = Time(2459249.7186, format='jd')
+    end = Time(2459249.7966, format='jd')
+    ra = 117.080514 
+    dec = 11.409502
     run(ra,dec,start,end)

@@ -24,14 +24,16 @@ from datetime import timedelta
 from urllib.request import HTTPError
 #import getGBMdata
 import glob
-from ftplib import FTP
+from ftplib import FTP,FTP_TLS
 import os
 
+import sys
+sys.path.append("/Users/annaho/Dropbox/astronomy/tools/HE_Burst_Search/gbm")
+from clock import *
 
 
 
-
-poshistpath = '/Users/annaho/Dropbox/Projects/Research/HE_Burst_Search/'
+poshistpath = '.'
 
 naitable = """
  n0  45.9  20.6
@@ -82,11 +84,11 @@ def getData(MET, putdir=None, basedir='', getTTEflag=False, getPOSflag=False, ge
     if not os.path.exists(putdir):
         os.makedirs(putdir)
        
-    ftp = FTP('legacy.gsfc.nasa.gov')
-    ftp.login()
+    ftps = FTP_TLS('legacy.gsfc.nasa.gov')
+    ftps.login()
     ftpdir = 'fermi/data/gbm/daily/20'+yymmddpath+'current/'
-    ftp.cwd(ftpdir)
-    foldfiles = ftp.nlst()
+    ftps.cwd(ftpdir)
+    foldfiles = ftps.nlst()
     
     try:
         if getPOSflag == True:
@@ -96,7 +98,7 @@ def getData(MET, putdir=None, basedir='', getTTEflag=False, getPOSflag=False, ge
                 putfold = putdir+filename
                 if not os.path.isfile(putfold):
                     putfile = open(putfold, 'wb')
-                    ftp.retrbinary("RETR " + filename, putfile.write)
+                    ftps.retrbinary("RETR " + filename, putfile.write)
                     putfile.close()
                     
         if getCTIMEflag == True:
@@ -105,7 +107,7 @@ def getData(MET, putdir=None, basedir='', getTTEflag=False, getPOSflag=False, ge
                 putfold = putdir+fn
                 if not os.path.isfile(putfold):
                     putfile = open(putfold, 'wb')
-                    ftp.retrbinary("RETR " + fn, putfile.write)
+                    ftps.retrbinary("RETR " + fn, putfile.write)
                     putfile.close()
         
         if getCSPECflag == True:
@@ -114,7 +116,7 @@ def getData(MET, putdir=None, basedir='', getTTEflag=False, getPOSflag=False, ge
                 putfold = putdir+fn
                 if not os.path.isfile(putfold):
                     putfile = open(putfold, 'wb')
-                    ftp.retrbinary("RETR " + fn, putfile.write)
+                    ftps.retrbinary("RETR " + fn, putfile.write)
                     putfile.close()
 
         if getTTEflag == True:
@@ -143,13 +145,13 @@ def getData(MET, putdir=None, basedir='', getTTEflag=False, getPOSflag=False, ge
                 putfold = putdir+fn
                 if not os.path.isfile(putfold):
                     putfile = open(putfold, 'wb')
-                    ftp.retrbinary("RETR " + fn, putfile.write)
+                    ftps.retrbinary("RETR " + fn, putfile.write)
                     putfile.close()
 
-        ftp.quit()    
+        ftps.quit()    
     except IndexError:
         print('Index Error in getGBMdata')
-        ftp.quit()
+        ftps.quit()
 
 def getDetAngles(MET, inra, indec, poshistloc=poshistpath):
     sdt = datetime.datetime(2001,1,1,0,0,0)+timedelta(seconds=MET)
@@ -339,7 +341,7 @@ def checkGTI(cMET, poshistbase=poshistpath):
     """
     
     if not os.path.isdir(poshistbase):
-        poshistbase = '/Users/annaho/Dropbox/Projects/Research/HE_Burst_Search/'
+        poshistbase = '.'
     
     t0 = Time('2001-01-01T00:00:00')
     dateobs = str((t0+(cMET)*u.s).value)[0:19]
