@@ -14,7 +14,7 @@ import pandas as pd
 import re
 import subprocess
 import os
-from time import strptime
+from datetime import datetime
 from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -31,15 +31,17 @@ def get_searchstr(t):
 
 def ipn(ra,dec,start,end):
     """ Check the online IPN catalog
-    Note that this catalog ends on 30 June 2019
+    Note that this catalog is not updated in real time
 
-    Also assumes that bursts were in 2000 onward.
+    This code will only work for bursts in 2000 onward.
     Would need to modify for years with 19XX.
     """
     c = SkyCoord(ra,dec,unit='deg')
-    window = [Time(start, format="jd"), Time(end, format="jd")]
 
     print("CONDUCTING SEARCH OF IPN CATALOG")
+
+    # convert to JD
+    window = [Time(start, format='datetime'), Time(end, format='datetime')]
 
     # Make sure that each day is represented
     window_grid = Time(
@@ -50,8 +52,7 @@ def ipn(ra,dec,start,end):
     # Pull out the relevant lines
     fpath = "http://www.ssl.berkeley.edu/ipn3/masterli.txt"
     fname = fpath.split('/')[-1]
-    if os.path.exists(fname) is False:
-        subprocess.call(['wget', 'http://www.ssl.berkeley.edu/ipn3/masterli.txt'])
+    subprocess.call(['wget', '-O', 'masterli.txt', 'http://www.ssl.berkeley.edu/ipn3/masterli.txt'])
     lines = np.array(open(fname, "r").readlines())
     header = lines[np.array([' DOY TIME ' in l for l in lines])][0]
     keep = np.array([l[7:16] in searchstr for l in lines])
@@ -83,9 +84,14 @@ def ipn(ra,dec,start,end):
 ######################################
 
 def fermi(ra,dec,start,end):
-    """ Check the online Fermi burst catalog """
+    """ Check the online Fermi trigger catalog 
+
+    Under the 'trigger_type' entry, GRBs are under 'GRB' and 
+    the 'reliability' entry gives the classification probability. 
+    Fermi usually does >80% GRB for their automatic processing threshold
+    """
     c = SkyCoord(ra,dec,unit='deg')
-    window = [Time(start, format="jd"), Time(end, format="jd")]
+    window = [Time(start, format='datetime'), Time(end, format='datetime')]
 
     print("\n")
     print("CONDUCTING SEARCH OF FERMI CATALOG")
@@ -124,10 +130,14 @@ def fermi_subthreshold(ra,dec,start,end):
     check the fermi subthreshold notices
     https://gcn.gsfc.nasa.gov/fermi_gbm_subthresh_archive.html
 
+    the list only starts in 2017. to search it prior to that date,
+    you would have to do something different.
+
     the html scraper borrows heavily from
     https://towardsdatascience.com/web-scraping-html-tables-with-python-c9baba21059
     """
-    window = [Time(start, format='jd'), Time(end, format='jd')]
+
+    window = [Time(start, format='datetime'), Time(end, format='datetime')]
     c = SkyCoord(ra,dec,unit='deg')
 
     print('\n')
@@ -157,7 +167,6 @@ def fermi_subthreshold(ra,dec,start,end):
     Dict={title:column for (title,column) in col}
     df=pd.DataFrame(Dict)
 
-
     # Now, go through the table and check whether each burst
     # is consistent with the time interval.
     # If so, calculate the RA and Dec offset
@@ -185,58 +194,48 @@ def swift(ra,dec,start,end):
     check the Swift GRB table
     https://swift.gsfc.nasa.gov/archive/grb_table/
 
-    I downloaded both the 2018 and 2019 tables,
-    assuming that I won't need to search outside that window.
+    sometimes, the burst time is listed as nan. that's when a burst was found in subsequent
+    ground analysis. for now I am ignoring this case, since typically bursts were found
+    by other spacecraft.
     """
-    window = [Time(start, format="jd"), Time(end, format="jd")]
     c = SkyCoord(ra,dec,unit='deg')
 
     print("\n")
     print("CONDUCTING SEARCH OF SWIFT/BAT CATALOG")
-    dat = np.loadtxt(
-            "/Users/annaho/Dropbox/astronomy/tools/HE_Burst_Search/swift_grb_2018.txt", 
-            dtype=str, skiprows=1) 
-    nrows = dat.shape[0]
-    year = ["20%s-%s-%s" %(i[0:2],i[2:4],i[4:6]) for i in dat[:,0]]
-    time = dat[:,1]
-    ra = dat[:,2].astype(float)
-    dec = dat[:,3].astype(float)
-    epos = dat[:,4].astype(float)
-    date = [Time(
-        '%sT%s' %(year[i],time[i]), format='isot') for i in np.arange(nrows)]
 
-    dat = np.loadtxt(
-            "/Users/annaho/Dropbox/astronomy/tools/HE_Burst_Search/swift_grb_2019.txt", 
-            dtype=str, skiprows=1) 
-    nrows = dat.shape[0]
-    year = ["20%s-%s-%s" %(i[0:2],i[2:4],i[4:6]) for i in dat[:,0]]
-    time = dat[:,1]
-    date2 = [Time(
-        '%sT%s' %(year[i],time[i]), format='isot') for i in np.arange(nrows)]
-
-    epos_temp = dat[:,4]
-    epos_temp[epos_temp=='n/a'] = '0'
-
-    ra = np.hstack((ra, dat[:,2].astype(float)))
-    dec = np.hstack((dec, dat[:,3].astype(float)))
-    epos = np.hstack((epos, epos_temp.astype(float)))
-    date.extend(date2)
-    date =np.array(date)
+    www = 'https://swift.gsfc.nasa.gov/archive/grb_table/table.php?'
+    info = "obs=Swift&year=All+Years&grb_time=1&bat_ra=1&bat_dec=1&bat_err_radius=1"
+    df = pd.read_html(www+info)[0]
     
-    keep = np.logical_and(date >= window[0], date <= window[-1])
+    names = np.array([val[0][0:6] for val in df['GRB'].values])
+    ttime = np.array([val[0] for val in df['Time[UT]'].values])
+    grbra = np.array([val[0] for val in df['BAT RA(J2000)'].values])
+    grbdec = np.array([val[0] for val in df['BAT Dec(J2000)'].values])
+    grbepos = np.array([val[0] for val in df['BAT 90%Error Radius[arcmin]'].values])
+
+    # ignore the bursts where the time is n/a or the pos is n/a
+    ignore = np.logical_or(ttime=='nan', grbra=='nan')
+    names = names[~ignore]
+    ttime = [val[0:8] for val in ttime[~ignore]] # get rid of decimal places
+    grbt_raw = np.array([''.join(map(str, i)) for i in zip(names,ttime)])
+    grbt = np.array([datetime.strptime(val, '%y%m%d%H:%M:%S') for val in grbt_raw])
+    grbra = [val[0:6] for val in grbra[~ignore]]
+    grbdec = [val[0:6] for val in grbdec[~ignore]]
+    grbepos = grbepos[~ignore]
+
+    keep = np.logical_and(grbt >= start, grbt <= end)
     if sum(keep) == 0:
         print("No Swift/BAT bursts during this window")
     else:
         print("%s Swift/BAT bursts during this window" %sum(keep))
         for i in np.where(keep)[0]:
             print("Position is %s, %s with error %s deg" %(
-                ra[i],dec[i],epos[i]))
-            c2 = SkyCoord(ra[i], dec[i], unit='deg')
+                grbra[i],grbdec[i],grbepos[i]))
+            c2 = SkyCoord(grbra[i], grbdec[i], unit='deg')
             print("Separation is %s deg" %c.separation(c2).degree)
 
 
 def run(ra,dec,start,end):
-    window = [start, end]
     c = SkyCoord(ra, dec, unit='deg')
     ipn(ra,dec,start,end)
     fermi(ra,dec,start,end)
@@ -245,8 +244,8 @@ def run(ra,dec,start,end):
 
 
 if __name__=="__main__":
-    start = Time(2459249.7186, format='jd')
-    end = Time(2459249.7966, format='jd')
-    ra = 117.080514 
-    dec = 11.409502
+    start = datetime.fromisoformat('2020-10-08T00:00:00')
+    end = datetime.fromisoformat('2020-10-13T00:00:00')
+    ra = 335.008456
+    dec = -2.840352
     run(ra,dec,start,end)
